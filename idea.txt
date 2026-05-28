@@ -1,0 +1,11 @@
+DSL (learn parsing, execution, optimization etc.,)
+DSLs define Agents which are rectangles on a grid world
+each Agent has its own state and DSL instructions. They all run a step in a single time i.e. all tick sequentially in a loop.
+then resolved.
+Agents can communicate and have interaction rules.
+also: type of agent changing DSLs, variables, and such.
+Advanced:
+and a spec plan that can have seed, propotion of each type of agent in world, how/where to spawn
+Simulation = World + SpawnConfig + AgentTypes + DSLs + Scheduler
+
+later: evolution (of DSLs), ML, neurosymbolic approaches, etc., 
