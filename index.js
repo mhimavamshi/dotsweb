@@ -1,51 +1,84 @@
 import { Screen } from "./screen.js";
+import { Grid } from "./grid.js";
+import { EventRegistry } from "./eventregistry.js";
+import { Agent } from "./agent.js";
 
 const canvas = document.getElementById("worldCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
 const screen = new Screen(canvas, ctx);
+const size = { width: canvas.width, height: canvas.height };
+const grid = new Grid(size);
+let agents = [];
+const eventregistry = new EventRegistry();
 
-const boxes = [];
-for (let i = -10; i <= 10; i++) {
-    for (let j = -10; j <= 10; j++) {
-        boxes.push({ x: i * 60, y: j * 60 });
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function populateAgents(n = 5) {
+    const cols = size.width / grid.CELL_SIZE.width;
+    const rows = size.height / grid.CELL_SIZE.height;
+    const halfCols = Math.floor(cols / 2);
+    const halfRows = Math.floor(rows / 2);
+
+
+    for (let i = 0; i < n; i++) {
+        let pos = {
+            x: getRandomInt(-halfCols, halfCols - 1),
+            y: getRandomInt(-halfRows, halfRows - 1)
+        };
+        let agent = new Agent(pos);
+        agents.push(agent);
     }
 }
+populateAgents(5);
 
-const keys = {};
-window.addEventListener("keydown", e => keys[e.key] = true);
-window.addEventListener("keyup", e => keys[e.key] = false);
+function setUpEvents() {
 
-function update() {
-    const speed = 5;
-
-    if (keys["ArrowLeft"]) screen.camera.x -= speed;
-    if (keys["ArrowRight"]) screen.camera.x += speed;
-    if (keys["ArrowUp"]) screen.camera.y -= speed;
-    if (keys["ArrowDown"]) screen.camera.y += speed;
-}
-
-function drawWorld() {
-    for (let b of boxes) {
-        ctx.fillStyle = "white";
-        ctx.fillRect(b.x - 10, b.y - 10, 20, 20);
+    grid.registerEvents(eventregistry);
+    for (const agent of agents) {
+        agent.registerEvents(eventregistry);
     }
+
+
+    canvas.addEventListener("click", function (event) {
+        const rect = canvas.getBoundingClientRect();
+
+        const canvasX = event.clientX - rect.left;
+        const canvasY = event.clientY - rect.top;
+
+        const translatedX = canvasX - (canvas.width / 2);
+        const translatedY = canvasY - (canvas.height / 2);
+
+        eventregistry.emit("mouseClick", { x: translatedX, y: translatedY });
+
+    });
+
+
+    window.addEventListener("keydown", function (event) {
+        eventregistry.emit("keyDown", event);
+    });
+
 }
 
-function drawUI() {
-    ctx.fillStyle = "lime";
-    ctx.font = "16px monospace";
-    ctx.fillText("SCREEN SPACE UI (test)", 20, 30);
-    ctx.fillStyle = "white";
-    ctx.fillText(`Camera: (${screen.camera.x.toFixed(1)}, ${screen.camera.y.toFixed(1)})`, 20, 55);
+
+function drawWorld(ctx) {
+    let positions = [];
+    for (const agent of agents) {
+        positions.push(agent.pos);
+    }
+
+    grid.draw(ctx);
+    grid.drawCells(ctx, positions);
 }
 
+function drawUI(ctx) {
+
+}
+
+setUpEvents();
 function loop() {
-    update();
-
     screen.draw(drawWorld, drawUI);
 
     requestAnimationFrame(loop);

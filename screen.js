@@ -14,9 +14,9 @@ class Screen {
 
     draw(worldCallBack, screenCallBack) {
         this.switchToWorld();
-        worldCallBack();
+        worldCallBack(this.ctx);
         this.switchToScreen();
-        screenCallBack();
+        screenCallBack(this.ctx);
     }
 
     clear() {
