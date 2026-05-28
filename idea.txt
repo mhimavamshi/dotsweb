@@ -8,4 +8,19 @@ Advanced:
 and a spec plan that can have seed, propotion of each type of agent in world, how/where to spawn
 Simulation = World + SpawnConfig + AgentTypes + DSLs + Scheduler
 
+1. Sense phase
+   → build sense object
+
+2. Execute DSL
+   input: (sense + memory)
+   output: actions + memory writes
+
+3. Resolve conflicts
+   (multiple agents wanting same cell etc.)
+
+4. Apply actions
+   → move agents, color changes, etc.
+
+5. Commit memory updates
+
 later: evolution (of DSLs), ML, neurosymbolic approaches, etc., 
