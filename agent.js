@@ -6,22 +6,7 @@ class Agent {
         this.UNIT = 1;
     }
 
-    handleMovement(event) {
-        if(event.key == "ArrowUp") this.pos.y -= this.UNIT;
-        if(event.key == "ArrowDown") this.pos.y += this.UNIT;
-        if(event.key == "ArrowLeft") this.pos.x -= this.UNIT;
-        if(event.key == "ArrowRight") this.pos.x += this.UNIT;
-    }
-
-    registerEvents(eventregistry) {
-        eventregistry.register({
-            keyDown: (event) => {
-                this.handleMovement(event);
-                console.log(`new pos: ${JSON.stringify(this.pos)} after ${event.key}`);
-            }
-        });
-    }
-
+    
 }
 
 export { Agent };

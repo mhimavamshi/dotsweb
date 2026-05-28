@@ -10,6 +10,7 @@ class Screen {
         this.canvas = canvas;
 
         this.BACKGROUND_COLOR = "black";
+        this.movespeed = 15;
     }
 
     draw(worldCallBack, screenCallBack) {
@@ -35,6 +36,19 @@ class Screen {
 
     switchToScreen() {
         this.ctx.restore();
+    }
+
+    handleKey(event) {
+        if (event.key === "ArrowUp") this.camera.y -= this.movespeed;
+        if (event.key === "ArrowDown") this.camera.y += this.movespeed;
+        if (event.key === "ArrowLeft") this.camera.x -= this.movespeed;
+        if (event.key === "ArrowRight") this.camera.x += this.movespeed;
+    }
+
+    registerEvents(eventregistry) {
+        eventregistry.register({
+            keyDown: (event) => this.handleKey(event)
+        });
     }
 
 }

@@ -26,32 +26,40 @@ class Grid {
         this.filled.add(`${index.x},${index.y}`);
     }
 
-    drawVerticalLines(ctx) {
-        let currX = -this.SIZE.width / 2;
+    drawVerticalLines(ctx, camera) {
+        const left = camera.x - this.SIZE.width / 2;
+        const right = camera.x + this.SIZE.width / 2;
+
+        let currX = Math.floor(left / this.CELL_SIZE.width) * this.CELL_SIZE.width;
+
         ctx.beginPath();
-        while (currX <= this.SIZE.width / 2) {
-            ctx.moveTo(currX, -this.SIZE.height / 2);
-            ctx.lineTo(currX, this.SIZE.height / 2);
+
+        while (currX <= right) {
+            ctx.moveTo(currX, camera.y - this.SIZE.height / 2);
+            ctx.lineTo(currX, camera.y + this.SIZE.height / 2);
+
             currX += this.CELL_SIZE.width;
         }
 
         ctx.stroke();
-
     }
 
-    drawHorizontalLines(ctx) {
-        let currY = -this.SIZE.height / 2;
+    drawHorizontalLines(ctx, camera) {
+        const top = camera.y - this.SIZE.height / 2;
+        const bottom = camera.y + this.SIZE.height / 2;
+
+        let currY = Math.floor(top / this.CELL_SIZE.height) * this.CELL_SIZE.height;
 
         ctx.beginPath();
-        while (currY <= this.SIZE.height / 2) {
-            ctx.moveTo(-this.SIZE.width / 2, currY);
-            ctx.lineTo(this.SIZE.width / 2, currY);
+
+        while (currY <= bottom) {
+            ctx.moveTo(camera.x - this.SIZE.width / 2, currY);
+            ctx.lineTo(camera.x + this.SIZE.width / 2, currY);
+
             currY += this.CELL_SIZE.height;
         }
 
         ctx.stroke();
-
-
     }
 
     drawFilled(ctx) {
@@ -87,10 +95,10 @@ class Grid {
     }
     
 
-    draw(ctx) {
+    draw(ctx, camera) {
         ctx.strokeStyle = "white";
-        this.drawVerticalLines(ctx);
-        this.drawHorizontalLines(ctx);
+        this.drawVerticalLines(ctx, camera);
+        this.drawHorizontalLines(ctx, camera);
         this.drawFilled(ctx);
     }
 

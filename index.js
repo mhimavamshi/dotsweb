@@ -32,15 +32,13 @@ function populateAgents(n = 5) {
         agents.push(agent);
     }
 }
-populateAgents(5);
+populateAgents(1);
 
 function setUpEvents() {
 
     grid.registerEvents(eventregistry);
-    for (const agent of agents) {
-        agent.registerEvents(eventregistry);
-    }
 
+    screen.registerEvents(eventregistry);
 
     canvas.addEventListener("click", function (event) {
         const rect = canvas.getBoundingClientRect();
@@ -69,7 +67,7 @@ function drawWorld(ctx) {
         positions.push(agent.pos);
     }
 
-    grid.draw(ctx);
+    grid.draw(ctx, screen.camera);
     grid.drawCells(ctx, positions);
 }
 
