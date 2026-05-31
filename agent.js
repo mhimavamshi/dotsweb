@@ -1,6 +1,3 @@
-// my idea next is simply to have programmable agents - DSLs that tick and change variables of the agent. each agent has its own exec context
-// well have to decide if its wrap around or camera panning on infinite grid. given screen - infinite grid seems fine,  with camera panning (Screen to event registry key events)
-
 import { Executor } from "./execution.js";
 class Agent {
     constructor(pos, dsl) {
@@ -9,9 +6,17 @@ class Agent {
 
         this.dsl = dsl;
         this.executionctx = new Executor(this);
+
+        this.memory = {};
+        this.senses = {};
+    }
+
+    buildSenses(grid) {
+        // derive and update sensory data
     }
 
     tick() {
+        this.buildSenses();
         this.executionctx.tick();
     }
 
