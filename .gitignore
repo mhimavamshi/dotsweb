@@ -1,2 +1,4 @@
 # its for copying all js files in one go and reviewing code
 programs.sh 
+# random text files - scratch pad etc
+*.txt
