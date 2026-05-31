@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSL Tests</title>
+</head>
+<body>
+
+<script type="module">
+
+import {
+    scan,
+    Parser,
+    ByteCodeEmitter,
+    DSL
+} from "./dsl.js";
+import { Agent } from "./agent.js";
+
+/*
+|--------------------------------------------------------------------------
+| TEST UTILITIES
+|--------------------------------------------------------------------------
+*/
+
+function assert(condition, description = "") {
+    return {
+        result: !!condition,
+        description
+    };
+}
+
+function assertEqual(
+    actual,
+    expected,
+    description = "",
+    stringify = true
+) {
+
+    const left = stringify
+        ? JSON.stringify(actual)
+        : actual;
+
+    const right = stringify
+        ? JSON.stringify(expected)
+        : expected;
+
+    return {
+        result: left === right,
+        description,
+        actual,
+        expected
+    };
+}
+
+function addTest(results, description, fn) {
+
+    try {
+
+        const result = fn();
+
+        result.description =
+            description || result.description;
+
+        results.push(result);
+
+    }
+    catch (err) {
+
+        results.push({
+            result: false,
+            description,
+            error: err.message
+        });
+
+    }
+}
+
+function printResults(groups) {
+
+    // console.clear();
+
+    let totalTests = 0;
+    let totalPassed = 0;
+
+    console.log(
+        "%c=== DSL TEST SUITE ===",
+        "color:cyan;font-weight:bold;font-size:16px;"
+    );
+
+    for (const [name, tests] of Object.entries(groups)) {
+
+        const passed =
+            tests.filter(t => t.result).length;
+
+        totalTests += tests.length;
+        totalPassed += passed;
+
+        const color =
+            passed === tests.length
+                ? "green"
+                : "orange";
+
+        console.log(
+            `%c${name}: ${passed}/${tests.length}`,
+            `color:${color};font-weight:bold;`
+        );
+
+        tests.forEach((test, i) => {
+
+            if (test.result) {
+                return;
+            }
+
+            console.group(
+                `%cFAIL #${i + 1}: ${test.description}`,
+                "color:red;font-weight:bold;"
+            );
+
+            console.log(test);
+
+            console.groupEnd();
+
+        });
+    }
+
+    console.log(
+        `%cTOTAL: ${totalPassed}/${totalTests}`,
+        `color:${
+            totalPassed === totalTests
+                ? "lime"
+                : "red"
+        };font-weight:bold;font-size:14px;`
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| HELPERS
+|--------------------------------------------------------------------------
+*/
+
+function tokenize(code) {
+    return scan(code);
+}
+
+function parse(code) {
+
+    const tokens = scan(code);
+
+    const parser = new Parser(tokens);
+
+    return parser.parse();
+}
+
+function compile(code) {
+
+    const ast = parse(code);
+
+    const emitter =
+        new ByteCodeEmitter(ast);
+
+    return emitter.bytecode();
+}
+
+function ops(bytecode) {
+    return bytecode.map(i => i.op);
+}
+
+/*
+|--------------------------------------------------------------------------
+| LEXER TESTS
+|--------------------------------------------------------------------------
+*/
+
+function lexerTests(results) {
+
+    addTest(
+        results,
+        "tokenizes if/else statement",
+        () => {
+
+            const tokens = tokenize(`
+                if sense "distance" > 5 {
+                    move "up"
+                }
+                else {
+                    move "down"
+                }
+            `);
+
+            return assertEqual(
+                tokens.map(t => t.type),
+                [
+                    "IF",
+                    "SENSE",
+                    "LITERAL",
+                    "MATHOP",
+                    "LITERAL",
+                    "LBRACE",
+
+                    "ACTION",
+                    "LITERAL",
+
+                    "RBRACE",
+                    "ELSE",
+                    "LBRACE",
+
+                    "ACTION",
+                    "LITERAL",
+
+                    "RBRACE"
+                ]
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "numeric literals become numbers",
+        () => {
+
+            const tokens =
+                tokenize(`memory "x" = 42`);
+
+            return assert(
+                typeof tokens[3].value === "number"
+            );
+        }
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| PARSER TESTS
+|--------------------------------------------------------------------------
+*/
+
+function parserTests(results) {
+
+    addTest(
+        results,
+        "assignment parses",
+        () => {
+
+            const ast =
+                parse(`memory "x" = 5`);
+
+            return assertEqual(
+                ast.body[0].type,
+                "ASSIGNMENT"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "if else parses",
+        () => {
+
+            const ast = parse(`
+                if sense "food" > 5 {
+                    move "up"
+                }
+                else {
+                    move "down"
+                }
+            `);
+
+            return assertEqual(
+                ast.body[0].type,
+                "IF_ELSE"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "operator precedence",
+        () => {
+
+            const ast =
+                parse(`memory "x" = 5 + 3 * 2`);
+
+            const expr =
+                ast.body[0].right;
+
+            return assertEqual(
+                expr.operator,
+                "+"
+            );
+        }
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| BYTECODE TESTS
+|--------------------------------------------------------------------------
+*/
+
+function bytecodeTests(results) {
+
+    addTest(
+        results,
+        "simple assignment emits expected ops",
+        () => {
+
+            const code =
+                compile(`memory "x" = 5 + 3`);
+
+            return assertEqual(
+                ops(code),
+                [
+                    "PUSH_CONST",
+                    "PUSH_CONST",
+                    "ADD",
+                    "STORE_MEMORY"
+                ]
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "comparison emits GT",
+        () => {
+
+            const code =
+                compile(`
+                    memory "x" =
+                    sense "food" > 5
+                `);
+
+            return assert(
+                ops(code).includes("GT")
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "if emits jumps",
+        () => {
+
+            const code = compile(`
+                if sense "food" > 5 {
+                    move "up"
+                }
+                else {
+                    move "down"
+                }
+            `);
+
+            const operations =
+                ops(code);
+
+            return assert(
+                operations.includes(
+                    "JUMP_IF_FALSE"
+                ) &&
+                operations.includes(
+                    "JUMP"
+                )
+            );
+        }
+    );
+}
+
+
+function edgeCaseTests(results) {
+
+    const parseToAst = (code) => {
+        const tokens = scan(code);
+        const parser = new Parser(tokens);
+        return parser.parse();
+    };
+
+    const compile = (code) => {
+        const tokens = scan(code);
+        const parser = new Parser(tokens);
+        const ast = parser.parse();
+
+        const emitter = new ByteCodeEmitter(ast);
+
+        return emitter.bytecode();
+    };
+
+    const assertThrows = (fn) => {
+        try {
+            fn();
+            return false;
+        }
+        catch {
+            return true;
+        }
+    };
+
+    //
+    // Scanner tests
+    //
+
+    addTest(
+        results,
+        "numeric literals become numbers",
+        () => {
+            const tokens = scan(`memory "x" = 42`);
+
+            return assert(
+                typeof tokens[3].value === "number"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "string literal preserved",
+        () => {
+            const tokens = scan(`move "up"`);
+
+            return assertEqual(
+                tokens[1].value,
+                "up"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "multi-character operators tokenize correctly",
+        () => {
+            const tokens = scan(
+                `memory "x" = 5 >= 3`
+            );
+
+            return assertEqual(
+                tokens[4].value,
+                ">="
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "unknown token throws",
+        () => {
+            return assert(
+                assertThrows(
+                    () => scan(`foobar`)
+                )
+            );
+        }
+    );
+
+    //
+    // Parser tests
+    //
+
+    addTest(
+        results,
+        "simple assignment parses",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = 5`
+            );
+
+            return assertEqual(
+                ast.body[0].type,
+                "ASSIGNMENT"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "sense expression parses",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = sense "food"`
+            );
+
+            return assertEqual(
+                ast.body[0].right.type,
+                "SENSE"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "binary expression parses",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = 1 + 2`
+            );
+
+            return assertEqual(
+                ast.body[0].right.operator,
+                "+"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "precedence root operator is +",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = 1 + 2 * 3`
+            );
+
+            return assertEqual(
+                ast.body[0].right.operator,
+                "+"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "precedence nests multiplication",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = 1 + 2 * 3`
+            );
+
+            return assertEqual(
+                ast.body[0].right.right.operator,
+                "*"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "comparison binds weaker than addition",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = 1 + 2 > 3`
+            );
+
+            return assertEqual(
+                ast.body[0].right.operator,
+                ">"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "nested if parses",
+        () => {
+            return assert(
+                !assertThrows(() =>
+                    parseToAst(`
+                        if sense "a" > 5 {
+
+                            if sense "b" > 3 {
+                                move "up"
+                            } else {
+                                move "down"
+                            }
+
+                        } else {
+
+                            move "left"
+
+                        }
+                    `)
+                )
+            );
+        }
+    );
+
+    //
+    // Bytecode tests
+    //
+
+    addTest(
+        results,
+        "assignment emits push",
+        () => {
+            const bytecode = compile(
+                `memory "x" = 5`
+            );
+
+            return assertEqual(
+                bytecode[0].op,
+                "PUSH_CONST"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "assignment emits store",
+        () => {
+            const bytecode = compile(
+                `memory "x" = 5`
+            );
+
+            return assertEqual(
+                bytecode[1].op,
+                "STORE_MEMORY"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "expression emits postfix bytecode",
+        () => {
+            const bytecode = compile(
+                `memory "x" = 1 + 2 * 3`
+            );
+
+            return assertEqual(
+                bytecode.map(x => x.op),
+                [
+                    "PUSH_CONST",
+                    "PUSH_CONST",
+                    "PUSH_CONST",
+                    "MUL",
+                    "ADD",
+                    "STORE_MEMORY"
+                ],
+                "",
+                true
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "if emits conditional jump",
+        () => {
+            const bytecode = compile(`
+                if 1 {
+                    move "up"
+                } else {
+                    move "down"
+                }
+            `);
+
+            return assert(
+                bytecode.some(
+                    x => x.op === "JUMP_IF_FALSE"
+                )
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "if emits end jump",
+        () => {
+            const bytecode = compile(`
+                if 1 {
+                    move "up"
+                } else {
+                    move "down"
+                }
+            `);
+
+            return assert(
+                bytecode.some(
+                    x => x.op === "JUMP"
+                )
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "nested if emits two conditional jumps",
+        () => {
+            const bytecode = compile(`
+                if sense "a" {
+
+                    if sense "b" {
+                        move "up"
+                    } else {
+                        move "down"
+                    }
+
+                } else {
+                    move "left"
+                }
+            `);
+
+            return assertEqual(
+                bytecode.filter(
+                    x => x.op === "JUMP_IF_FALSE"
+                ).length,
+                2
+            );
+        }
+    );
+
+    //
+    // Evil tests
+    //
+
+    addTest(
+        results,
+        "complex expression root operator",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = 1 + 2 * 3 > 4 + 5`
+            );
+
+            return assertEqual(
+                ast.body[0].right.operator,
+                ">"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "complex expression left branch",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = 1 + 2 * 3 > 4 + 5`
+            );
+
+            return assertEqual(
+                ast.body[0].right.left.operator,
+                "+"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "complex expression right branch",
+        () => {
+            const ast = parseToAst(
+                `memory "x" = 1 + 2 * 3 > 4 + 5`
+            );
+
+            return assertEqual(
+                ast.body[0].right.right.operator,
+                "+"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "standalone memory access rejected",
+        () => {
+            return assert(
+                assertThrows(
+                    () => parseToAst(
+                        `memory "x"`
+                    )
+                )
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "if without else rejected",
+        () => {
+            return assert(
+                assertThrows(
+                    () => parseToAst(
+                        `if sense "x" > 5 { move "up" }`
+                    )
+                )
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "deep nesting parses",
+        () => {
+            const ast = parseToAst(`
+                if 1 {
+                    if 1 {
+                        if 1 {
+                            if 1 {
+                                move "up"
+                            } else {
+                                move "down"
+                            }
+                        } else {
+                            move "left"
+                        }
+                    } else {
+                        move "right"
+                    }
+                } else {
+                    move "down"
+                }
+            `);
+
+            return assertEqual(
+                ast.body[0].type,
+                "IF_ELSE"
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "large expression compiles",
+        () => {
+            const bytecode = compile(`
+                memory "x" =
+                    1 + 2 * 3 + 4 * 5 + 6 * 7 + 8
+            `);
+
+            return assert(
+                bytecode.length > 10
+            );
+        }
+    );
+}
+
+
+function partialExecutorTests(results) {
+
+    const run = (code, setup = null) => {
+
+        const dsl = new DSL(code);
+
+        const agent = new Agent(
+            { x: 0, y: 0 },
+            dsl
+        );
+
+        if (setup) {
+            setup(agent);
+        }
+
+        agent.executionctx.tick();
+
+        return agent;
+    };
+
+    addTest(
+        results,
+        "constant assignment executes",
+        () => {
+
+            const agent = run(
+                `memory "x" = 5`
+            );
+
+            return assertEqual(
+                agent.memory.x,
+                5
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "arithmetic executes correctly",
+        () => {
+
+            const agent = run(
+                `memory "x" = 1 + 2 * 3`
+            );
+
+            return assertEqual(
+                agent.memory.x,
+                7
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "memory reads work",
+        () => {
+
+            const agent = run(`
+                memory "x" = 5
+                memory "y" = memory "x" + 2
+            `);
+
+            return assertEqual(
+                agent.memory.y,
+                7
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "sense reads work",
+        () => {
+
+            const agent = run(
+                `memory "x" = sense "food"`,
+                a => {
+                    a.senses.food = 42;
+                }
+            );
+
+            return assertEqual(
+                agent.memory.x,
+                42
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "comparison operators execute",
+        () => {
+
+            const agent = run(
+                `memory "x" = 5 > 3`
+            );
+
+            return assertEqual(
+                agent.memory.x,
+                true
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "if true branch executes",
+        () => {
+
+            const agent = run(`
+                if 1 {
+                    move "up"
+                } else {
+                    move "down"
+                }
+            `);
+
+            return assertEqual(
+                agent.executionctx.pending[0].move.y,
+                -1
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "if false branch executes",
+        () => {
+
+            const agent = run(`
+                if 0 {
+                    move "up"
+                } else {
+                    move "down"
+                }
+            `);
+
+            return assertEqual(
+                agent.executionctx.pending[0].move.y,
+                1
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "move up action queues movement",
+        () => {
+
+            const agent = run(
+                `move "up"`
+            );
+
+            return assertEqual(
+                agent.executionctx.pending[0].move.y,
+                -1
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "executePending updates position",
+        () => {
+
+            const dsl = new DSL(
+                `move "right"`
+            );
+
+            const agent = new Agent(
+                { x: 0, y: 0 },
+                dsl
+            );
+
+            agent.executionctx.tick();
+            agent.executePending();
+
+            return assertEqual(
+                agent.pos.x,
+                1
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "multiple assignments execute in order",
+        () => {
+
+            const agent = run(`
+                memory "a" = 10
+                memory "b" = memory "a" + 5
+                memory "c" = memory "b" * 2
+            `);
+
+            return assertEqual(
+                agent.memory.c,
+                30
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "nested if executes correct branch",
+        () => {
+
+            const agent = run(`
+                if 1 {
+
+                    if 0 {
+                        move "left"
+                    } else {
+                        move "right"
+                    }
+
+                } else {
+                    move "down"
+                }
+            `);
+
+            return assertEqual(
+                agent.executionctx.pending[0].move.x,
+                1
+            );
+        }
+    );
+
+    addTest(
+        results,
+        "stack ends empty after assignment",
+        () => {
+
+            const agent = run(
+                `memory "x" = 1 + 2`
+            );
+
+            return assertEqual(
+                agent.executionctx.stack.length,
+                0
+            );
+        }
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| DEBUG OUTPUT
+|--------------------------------------------------------------------------
+*/
+
+function dumpCompilation(code) {
+
+    console.group(
+        "%cCOMPILATION DUMP",
+        "color:cyan;font-weight:bold;"
+    );
+
+    const tokens = scan(code);
+
+    console.log("TOKENS");
+    console.table(
+        tokens.map(t => ({
+            type: t.type,
+            value: t.value,
+            start: t.start,
+            end: t.end
+        }))
+    );
+
+    const ast =
+        new Parser(tokens).parse();
+
+    console.log("AST");
+    console.log(ast);
+
+    const bytecode =
+        new ByteCodeEmitter(ast).bytecode();
+
+    console.log("BYTECODE");
+
+    bytecode.forEach((instr, i) => {
+        console.log(i, instr);
+    });
+
+    console.groupEnd();
+}
+
+/*
+|--------------------------------------------------------------------------
+| RUN
+|--------------------------------------------------------------------------
+*/
+
+const results = {
+    lexer: [],
+    parser: [],
+    bytecode: [],
+    edgecases: [],
+    partialexecutor: []
+};
+
+lexerTests(results.lexer);
+parserTests(results.parser);
+bytecodeTests(results.bytecode);
+edgeCaseTests(results.edgecases);
+partialExecutorTests(results.partialexecutor);
+
+printResults(results);
+
+dumpCompilation(`
+    if sense "distance_to_food" > 5 {
+
+        move "up"
+
+        memory "last_found" =
+            sense "distance_to_food"
+
+    }
+    else {
+
+        move "down"
+
+    }
+`);
+
+</script>
+
+</body>
+</html>
