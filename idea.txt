@@ -1,3 +1,5 @@
+=== just dump
+
 DSL (learn parsing, execution, optimization etc.,)
 DSLs define Agents which are rectangles on a grid world
 each Agent has its own state and DSL instructions. They all run a step in a single time i.e. all tick sequentially in a loop.
@@ -22,5 +24,16 @@ Simulation = World + SpawnConfig + AgentTypes + DSLs + Scheduler
    → move agents, color changes, etc.
 
 5. Commit memory updates
+
+
+the issue for me is, DSL moves on i.e. writes happen that are assume to be done i.e. MOVE to some memory. then next time its called - its state is assumed to be that it moved i.e. all effects happened as though move happened.
+but during resolve it didnt. 
+one way is to pause DSL on first pending action generated, do it, then get back with some ACTION result or something to inform future DSL  instructions (seems complicated)
+
+yep, one way is to pause DSL on first pending action generated, do it, then get back with some ACTION result or something to inform future DSL  instructions (seems complicated, and closer to every action feedback)
+
+i guess, in DSL we submit move, assume it happened and move on. grid has its own physics and resolves it. the DSL itself must assume MOVE with respect to grid  physics and less like action.
+right, actually, senses can indicate its own position, so DSL can use that variable if needed to check if it moved!
+
 
 later: evolution (of DSLs), ML, neurosymbolic approaches, etc., 
