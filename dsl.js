@@ -477,11 +477,12 @@ const bytecodecache = new Map();
 
 class DSL {
 
-    constructor(code) {
+    constructor(code, memory) {
         this.code = code;
         this.instructions = [];
 
         this.parse();
+        this.memory = memory; // initialize memory needed for agent.
     }
 
     parse() {
@@ -516,6 +517,10 @@ class DSL {
 
     get length() {
         return this.instructions.length;
+    }
+
+    get initialMemory() {
+        return this.memory;
     }
 }
 
