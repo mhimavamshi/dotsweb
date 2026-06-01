@@ -2,7 +2,7 @@ import { Screen } from "./screen.js";
 import { Grid } from "./grid.js";
 import { EventRegistry } from "./eventregistry.js";
 import { Agent } from "./agent.js";
-import { DSL } from "./execution.js";
+import { DSL } from "./dsl.js";
 import { Resolver } from "./resolver.js";
 
 const canvas = document.getElementById("worldCanvas");
@@ -15,20 +15,83 @@ let agents = [];
 const eventregistry = new EventRegistry();
 
 let ticks = 0;
-const TICKS_PER_FRAME = 5; 
+const TICKS_PER_FRAME = 10; 
 
-let dsl = new DSL();
-dsl.add(
-    [
-        {op: "move", dir: "up"},
-        {op: "move", dir: "left"},
-        {op: "move", dir: "up"},
-        {op: "move", dir: "right"},
-        {op: "move", dir: "right"},
-        {op: "move", dir: "down"},
-        {op: "move", dir: "down"}
-    ]
-)
+const spiralcode = `
+if memory "dir" == 0 {
+    move "up"
+    memory "step" = memory "step" + 1
+
+    if memory "step" >= memory "limit" {
+        memory "step" = 0
+        memory "dir" = 1
+    } else {
+    
+    }
+
+} else {
+    if memory "dir" == 1 {
+        move "left"
+        memory "step" = memory "step" + 1
+
+        if memory "step" >= memory "limit" {
+            memory "step" = 0
+            memory "dir" = 2
+        } else {
+            
+        }
+
+    } else {
+        if memory "dir" == 2 {
+            move "down"
+            memory "step" = memory "step" + 1
+
+            if memory "step" >= memory "limit" {
+                memory "step" = 0
+                memory "dir" = 3
+            } else {
+                
+            }
+
+        } else {
+            move "right"
+            memory "step" = memory "step" + 1
+
+            if memory "step" >= memory "limit" {
+                memory "step" = 0
+                memory "dir" = 0
+                memory "limit" = memory "limit" + 1
+            } else {
+            
+            }
+        }
+    }
+}
+`
+
+const cyclecolorcode = `
+if memory "color" == 0 {
+    color "red"
+    memory "color" = 1
+} else {
+    if memory "color" == 1 {
+        color "yellow"
+        memory "color" = 2
+    } else {
+        if memory "color" == 2 {
+            color "green"
+            memory "color" = 0
+        } else {
+            memory "color" = 0
+        }
+    }
+}
+`
+
+// ooo, i realized, if i have to have spiral and color both at the same time, as long they have independent variables (which ensures independent paths!), i can run them sequentially to have both behaviours!
+
+let dsl = new DSL(cyclecolorcode, {dir: 0, step: 0, limit: 1});
+
 
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -52,7 +115,7 @@ function populateAgents(n = 5) {
 
     
 }
-populateAgents(1);
+populateAgents(5);
 
 const resolver = new Resolver(agents);
 
@@ -90,7 +153,7 @@ function update() {
 function drawWorld(ctx) {
     let positions = [];
     for (const agent of agents) {
-        positions.push(agent.pos);
+        positions.push({pos: agent.pos, color: agent.color});
     }
 
     grid.draw(ctx, screen.camera);
