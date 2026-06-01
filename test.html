@@ -940,7 +940,7 @@ function partialExecutorTests(results) {
             `);
 
             return assertEqual(
-                agent.executionctx.pending[0].move.y,
+                agent.executionctx.pending[0].data.y,
                 -1
             );
         }
@@ -960,7 +960,7 @@ function partialExecutorTests(results) {
             `);
 
             return assertEqual(
-                agent.executionctx.pending[0].move.y,
+                agent.executionctx.pending[0].data.y,
                 1
             );
         }
@@ -976,7 +976,7 @@ function partialExecutorTests(results) {
             );
 
             return assertEqual(
-                agent.executionctx.pending[0].move.y,
+                agent.executionctx.pending[0].data.y,
                 -1
             );
         }
@@ -1044,7 +1044,7 @@ function partialExecutorTests(results) {
             `);
 
             return assertEqual(
-                agent.executionctx.pending[0].move.x,
+                agent.executionctx.pending[0].data.x,
                 1
             );
         }
