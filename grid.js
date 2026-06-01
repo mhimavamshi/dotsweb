@@ -79,11 +79,11 @@ class Grid {
     }
 
     drawCells(ctx, indices) {
-        ctx.fillStyle = "red";
 
         for (const index of indices) {
+            ctx.fillStyle = index.color;
 
-            let {x, y} = this.indexToWorld(index.x, index.y);
+            let {x, y} = this.indexToWorld(index.pos.x, index.pos.y);
 
             ctx.fillRect(
                 x,
