@@ -158,50 +158,43 @@ class Executor {
                 break;
             }
 
-            case "MOVE":
+            case "MOVE": {
                 const dir = instr.args[0];
                 if (dir === "up") {
-                    this.pending.push({
-                        move: {
-                            x: 0,
-                            y: -this.agent.UNIT
-                        }
-                    });
+                    this.addPendingAction("MOVE", {x: 0, y: -this.agent.UNIT});
                 }
 
                 if (dir === "down") {
-                    this.pending.push({
-                        move: {
-                            x: 0,
-                            y: this.agent.UNIT
-                        }
-                    });
+                    this.addPendingAction("MOVE", {x: 0, y: this.agent.UNIT});
                 }
 
                 if (dir === "left") {
-                    this.pending.push({
-                        move: {
-                            x: -this.agent.UNIT,
-                            y: 0
-                        }
-                    });
+                    this.addPendingAction("MOVE", {y: 0, x: -this.agent.UNIT});
                 }
 
                 if (dir === "right") {
-                    this.pending.push({
-                        move: {
-                            x: this.agent.UNIT,
-                            y: 0
-                        }
-                    });
+                    this.addPendingAction("MOVE", {y: 0, x: this.agent.UNIT});
                 }
 
                 break;
+            }
+
+            case "COLOR": {
+                const color = instr.args[0];
+                this.addPendingAction("COLOR", color);
+
+                break;
+            }
+
         }
 
         this.ip++;
     }
     
+    addPendingAction(action, data) {
+        this.pending.push({type: action, data: data});
+    }
+
     tick() {
 
         this.pending = [];
