@@ -98,8 +98,9 @@ const fixed = {
     "sense": SenseToken,
 }
 
+// it'd be cool if we encode number of arguments ACTION token requires, so we can enforce during parsing
 const actions = new Set([
-    "move"
+    "move", "color"
 ]);
 
 const isNumber = (str) => !isNaN(str) && !isNaN(parseFloat(str));
@@ -109,7 +110,7 @@ const isIdentifier = (str) => actions.has(str);
 
 const multiple = [
     { check: isMathOp, target: MathOpToken },
-    { check: isNumber, target: LiteralToken },
+    { check: isNumber, target: LiteralToken }, // i guess we can have NumberLiteral and StringLiteral instead of generic as we don't have many types anyway
     { check: isStringLiteral, target: LiteralToken },
     { check: isIdentifier, target: ActionToken }
 ];
